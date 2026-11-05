@@ -1,0 +1,126 @@
+{
+  "name": "dsh-ai-memory",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Auditable long-term judgment memory for DeepSeek Harness agents: deterministic supersession, open questions, user-confirmed personality evolution, and a knowledge graph.",
+  "author": "Isyyyue",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Isyyyue/dsh-ai-memory.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Isyyyue/dsh-ai-memory/issues"
+  },
+  "homepage": "https://github.com/Isyyyue/dsh-ai-memory#readme",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/",
+    "lib/",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh": "^0.2.1-rc.2"
+  },
+  "scripts": {
+    "test": "node --test \"test/unit/**/*.test.js\"",
+    "test:e2e": "node test/e2e.mjs",
+    "test:manifest": "node test/checks/manifest-check.mjs",
+    "test:verify": "node test/manual/verify-physics.mjs && node test/manual/verify-concurrency.mjs && node test/manual/verify-guardrails.mjs && node test/manual/verify-inject-routes.mjs",
+    "test:all": "npm test && npm run test:e2e && npm run test:manifest && npm run test:verify"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    },
+    "requires": {
+      "tested": "0.2.1-rc.2",
+      "checks": [
+        {
+          "kind": "profileDep"
+        },
+        {
+          "kind": "clientBundle"
+        },
+        {
+          "kind": "patchRow"
+        },
+        {
+          "kind": "http",
+          "path": "/plugins/dsh-ai-memory/stats",
+          "expect": 200
+        },
+        {
+          "kind": "httpFields",
+          "path": "/plugins/dsh-ai-memory/stats",
+          "keys": [
+            "ok",
+            "stats",
+            "problems"
+          ]
+        },
+        {
+          "kind": "http",
+          "path": "/plugins/dsh-ai-memory/snapshot",
+          "expect": 200
+        },
+        {
+          "kind": "httpFields",
+          "path": "/plugins/dsh-ai-memory/snapshot",
+          "keys": [
+            "ok",
+            "nodes",
+            "edges",
+            "stats",
+            "truncated"
+          ]
+        },
+        {
+          "kind": "http",
+          "path": "/plugins/dsh-ai-memory/questions",
+          "expect": 200
+        },
+        {
+          "kind": "httpFields",
+          "path": "/plugins/dsh-ai-memory/questions",
+          "keys": [
+            "ok",
+            "questions"
+          ]
+        }
+      ]
+    }
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "ai-agent",
+    "memory",
+    "bi-temporal",
+    "supersede",
+    "provenance",
+    "knowledge-graph",
+    "personality",
+    "self-reflection",
+    "jsonl",
+    "temporal-database"
+  ],
+  "license": "MIT"
+}
