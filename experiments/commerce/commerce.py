@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import struct
 import subprocess
 import threading
 import time
@@ -19,6 +20,7 @@ APPS = {"taobao": "com.taobao.taobao", "meituan": "com.sankuai.meituan"}
 LABELS = {"taobao": "淘宝", "meituan": "美团"}
 ROOT = Path(os.environ.get("DAFEIYU_COMMERCE_DATA", "/var/lib/feiyu/commerce"))
 SERIAL = os.environ.get("DAFEIYU_COMMERCE_SERIAL", "emulator-5580")
+ADB = "/opt/feiyu/android-sdk/platform-tools/adb"
 PAYMENT = re.compile(r"提交订单|提交定单|确认下单|立即下单|确认并支付|确认支付|确认付款|去支付|去付款|立即支付|立即付款|支付订单|付款码|免密支付|刷脸支付|支付密码|收银台|确认交易|place\s*order|pay\s*now|confirm\s*payment", re.I)
 BLOCKED_CONTROL = re.compile(r"支付|付款|下单|确认交易|立即购买|一键购买|submit.?order|place.?order|payment|pay.?now|buy.?now", re.I)
 CHECKOUT = re.compile(r"(?:去|立即)?结算|check\s*out|review\s*order", re.I)
@@ -115,14 +117,21 @@ def validate_action(view, action):
     return node
 
 
+def adb(*args):
+    return subprocess.check_output([ADB, "-s", SERIAL, *args], timeout=8, stderr=subprocess.DEVNULL)
+
+
+def verify_avd():
+    if not re.fullmatch(r"emulator-\d+", SERIAL):
+        raise Stopped("购物实验只支持独立模拟器。")
+    avd = adb("emu", "avd", "name").splitlines()
+    if not avd or avd[0].strip() != b"FeiYuCommerce":
+        raise Stopped("未找到指定的 FeiYuCommerce 虚拟手机。")
+
+
 class Android:
     def __init__(self):
-        adb = "/opt/feiyu/android-sdk/platform-tools/adb"
-        if not re.fullmatch(r"emulator-\d+", SERIAL):
-            raise Stopped("购物实验只支持独立模拟器。")
-        avd = subprocess.check_output([adb, "-s", SERIAL, "emu", "avd", "name"], text=True, timeout=8).splitlines()
-        if not avd or avd[0].strip() != "FeiYuCommerce":
-            raise Stopped("未找到指定的 FeiYuCommerce 虚拟手机。")
+        verify_avd()
         import uiautomator2 as u2
         self.device = u2.connect(SERIAL)  # Never implicitly select a real connected phone.
 
@@ -242,6 +251,8 @@ class Controller:
         self.lock = threading.Lock()
         self.cancel = threading.Event()
         self.thread = None
+        self.manual = False
+        self.dimensions = None
         self.state = {"status": "idle", "steps": [], "message": "实验未开始"}
 
     def update(self, **kwargs):
@@ -254,10 +265,54 @@ class Controller:
         with self.lock:
             if self.thread and self.thread.is_alive():
                 raise ValueError("已有任务运行，请先停止。")
+            self.manual = False
+            self.dimensions = None
             self.cancel.clear()
             self.state = {"status": "starting", "app": app, "goal": goal, "steps": [], "message": "正在打开 App"}
             self.thread = threading.Thread(target=self.run, args=(app, goal, explore), daemon=True)
             self.thread.start()
+
+    def set_manual(self, enabled):
+        with self.lock:
+            if self.thread and self.thread.is_alive():
+                raise ValueError("先停止 AI 任务，再手动操作。")
+            if enabled:
+                verify_avd()
+            self.manual = enabled
+            self.dimensions = None
+
+    def live_screen(self):
+        with self.lock:
+            if not self.manual:
+                raise ValueError("手动操作未开启。")
+            data = adb("exec-out", "screencap", "-p")
+            if len(data) < 24 or data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
+                raise ValueError("虚拟手机画面暂不可用。")
+            self.dimensions = struct.unpack(">II", data[16:24])
+            return data
+
+    def manual_input(self, value):
+        # Only the authenticated human panel invokes this path. The model has
+        # no coordinates, keyboard shortcut, endpoint, token or shell access.
+        with self.lock:
+            if not self.manual or not self.dimensions:
+                raise ValueError("请先开启手动操作并等待画面。")
+            kind = value.get("action")
+            if kind in ("back", "home"):
+                adb("shell", "input", "keyevent", "4" if kind == "back" else "3")
+                return
+            if kind not in ("tap", "swipe"):
+                raise ValueError("不支持的手动操作。")
+            def position(x, y):
+                if any(type(n) is not int or not 0 <= n < 10000 for n in (x, y)):
+                    raise ValueError("触点不在画面内。")
+                return str(x * self.dimensions[0] // 10000), str(y * self.dimensions[1] // 10000)
+            start = position(value.get("x"), value.get("y"))
+            if kind == "tap":
+                adb("shell", "input", "tap", *start)
+            else:
+                end = position(value.get("endX"), value.get("endY"))
+                adb("shell", "input", "swipe", *start, *end, "450")
 
     def run(self, app, goal, explore):
         try:
@@ -348,7 +403,12 @@ def serve(port):
             if not self.authorized():
                 return self.send(403, b'{}')
             if self.path == "/api/status":
-                return self.send(200, json.dumps(controller.state, ensure_ascii=False).encode())
+                return self.send(200, json.dumps({**controller.state, "manual": controller.manual}, ensure_ascii=False).encode())
+            if self.path == "/api/live-screen":
+                try:
+                    return self.send(200, controller.live_screen(), "image/png")
+                except (ValueError, OSError, subprocess.SubprocessError):
+                    return self.send(409, b'{}')
             if self.path == "/api/screen":
                 path = ROOT / "screen.png"
                 return self.send(200, path.read_bytes(), "image/png") if path.exists() else self.send(404, b'{}')
@@ -367,10 +427,16 @@ def serve(port):
                     controller.start(value.get("app"), value.get("goal"), value.get("explore") is True)
                 elif self.path == "/api/stop":
                     controller.cancel.set()
+                elif self.path == "/api/manual":
+                    if type(value.get("enabled")) is not bool:
+                        raise ValueError("无效的手动操作状态。")
+                    controller.set_manual(value["enabled"])
+                elif self.path == "/api/input":
+                    controller.manual_input(value)
                 else:
                     return self.send(404, b'{}')
                 self.send(200, b'{"ok":true}')
-            except (ValueError, TypeError, AttributeError):
+            except (ValueError, TypeError, AttributeError, OSError, Stopped, subprocess.SubprocessError):
                 self.send(400, b'{"ok":false}')
 
     server = Server(("127.0.0.1", port), Handler)

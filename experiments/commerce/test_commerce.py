@@ -117,6 +117,22 @@ class PolicyTest(unittest.TestCase):
             self.assertEqual(controller.state["status"], "before_payment")
             self.assertEqual(planner.call_count, 5)
 
+    def test_manual_phone_input_is_separate_and_bounded(self):
+        png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + c.struct.pack(">II", 720, 1280)
+        with tempfile.TemporaryDirectory() as tmp, patch.object(c, "ROOT", Path(tmp)), patch.object(c, "adb") as adb:
+            controller = c.Controller()
+            with self.assertRaises(ValueError):
+                controller.manual_input({"action":"tap", "x":5000, "y":5000})
+            adb.return_value = b"FeiYuCommerce\nOK\n"
+            controller.set_manual(True)
+            adb.return_value = png
+            self.assertEqual(controller.live_screen(), png)
+            for bad in [True, -1, 10000, "10; reboot"]:
+                with self.assertRaises(ValueError):
+                    controller.manual_input({"action":"tap", "x":bad, "y":5000})
+            controller.manual_input({"action":"tap", "x":5000, "y":5000})
+            adb.assert_called_with("shell", "input", "tap", "360", "640")
+
 
 if __name__ == "__main__":
     unittest.main()

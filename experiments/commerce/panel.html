@@ -1,10 +1,59 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>大肥鱼 · 购物实验</title><style>
-body{font:16px system-ui;background:#f4f5f8;color:#1f2937;margin:0}main{max-width:1040px;margin:36px auto;padding:24px}h1{font-size:28px}p{line-height:1.7}.grid{display:grid;grid-template-columns:1fr 330px;gap:24px}.card{background:white;padding:24px;border-radius:18px;box-shadow:0 4px 24px #17204a09}textarea,select,button{font:inherit;border:1px solid #ccd1dc;border-radius:10px;padding:12px}textarea{box-sizing:border-box;width:100%;height:140px;margin:16px 0}button{cursor:pointer;background:#eef2ff;margin:8px 6px 8px 0}button.primary{background:#4f46e5;color:white}#screen{width:100%;border-radius:12px}#state{font-weight:600}li{margin:10px 0;font-size:14px}.note{color:#64748b;font-size:14px}@media(max-width:720px){.grid{grid-template-columns:1fr}main{margin:0;padding:16px}}
-</style><main><h1>大肥鱼 · 淘宝 / 美团实验</h1><p>在独立安卓虚拟手机中操作。到订单确认或付款入口停止，订单由你最终核对。</p><div class="grid"><section class="card"><select id="app"><option value="taobao">淘宝</option><option value="meituan">美团</option></select><textarea id="goal" maxlength="400" placeholder="例如：在淘宝搜索保温杯，比较两款的价格和容量。不要提交订单。"></textarea><div><button class="primary" id="start">开始 AI 任务</button><button id="open">打开 App / 刷新画面</button><button id="stop">停止</button></div><p id="state">正在连接…</p><p id="message"></p><ol id="steps"></ol><p class="note">首次请在虚拟手机窗口完成协议、登录及验证。模型只能输入搜索词；地址、密码、验证码和付款由你处理。截图和任务留在本机。登录/订单页面不会发送给模型。</p></section><aside class="card"><img id="screen" alt="虚拟手机当前画面"><p class="note">操作后更新画面；可在虚拟手机窗口接管。</p></aside></div></main><script>
-let token=location.hash.slice(1);history.replaceState(null,'',location.pathname);let lastScreen=null;
-async function request(path,data){let r=await fetch(path,{method:data?'POST':'GET',headers:{'X-FeiYu-Commerce':token,'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined});if(!r.ok)throw Error('请求失败 '+r.status);return r}
-async function refresh(){try{let s=await(await request('/api/status')).json();document.querySelector('#state').textContent=s.status;document.querySelector('#message').textContent=s.message;let list=document.querySelector('#steps');list.replaceChildren(...s.steps.map(x=>{let li=document.createElement('li');li.textContent=x.action+'：'+x.reason;return li}));let r=await request('/api/screen');let blob=await r.blob();if(lastScreen)URL.revokeObjectURL(lastScreen);lastScreen=URL.createObjectURL(blob);document.querySelector('#screen').src=lastScreen}catch(e){if(!token)document.querySelector('#state').textContent='请通过 Commerce.cmd 打开带本机凭证的地址'}}
-async function start(explore){try{await request('/api/start',{app:document.querySelector('#app').value,goal:document.querySelector('#goal').value||'打开应用，检查当前页面',explore});await refresh()}catch(e){document.querySelector('#message').textContent=e.message}}
-document.querySelector('#start').onclick=()=>start(false);document.querySelector('#open').onclick=()=>start(true);document.querySelector('#stop').onclick=()=>request('/api/stop',{});refresh();setInterval(refresh,3000);
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>大肥鱼 · 购物实验</title>
+<style>
+body{font:16px system-ui;background:#f4f5f8;color:#1f2937;margin:0}main{max-width:1040px;margin:28px auto;padding:22px}h1{font-size:28px;margin:0}p{line-height:1.65}.grid{display:grid;grid-template-columns:1fr 330px;gap:24px}.card{background:white;padding:22px;border-radius:18px;box-shadow:0 4px 24px #17204a09}textarea,select,button{font:inherit;border:1px solid #ccd1dc;border-radius:10px;padding:11px}textarea{box-sizing:border-box;width:100%;height:130px;margin:14px 0}button{cursor:pointer;background:#eef2ff;margin:6px 5px 6px 0}button:disabled{opacity:.45;cursor:default}button.primary{background:#4f46e5;color:white}#screen{display:block;width:100%;border-radius:12px;user-select:none}#screen.manual{cursor:pointer;touch-action:none;outline:2px solid #4f46e5}#state{font-weight:600}li{margin:8px 0;font-size:14px}.note{color:#64748b;font-size:14px}.phone-controls{text-align:center}.warning{color:#a03b22}[hidden]{display:none!important}@media(max-width:720px){.grid{grid-template-columns:1fr}main{margin:0;padding:16px}.phone{order:-1}#screen{max-width:340px;margin:auto}}
+</style>
+<main><h1>大肥鱼 · 淘宝 / 美团实验</h1><p>在虚拟手机里登录和购物。AI 到确认订单或付款入口停止。</p>
+<div class="grid"><section class="card">
+<label for="app">选择应用</label> <select id="app"><option value="taobao">淘宝</option><option value="meituan">美团</option></select>
+<p><button id="open">打开 App 并手动操作</button><button id="manual">手动操作当前画面</button></p>
+<p class="note">首次登录时，请直接点击右侧虚拟手机画面，使用手机里的键盘。账号、协议和验证码由你在 App 里处理。</p>
+<label for="goal">登录后，输入 AI 任务</label><textarea id="goal" maxlength="400" placeholder="例如：在淘宝搜索 500ml 保温杯，比较两款商品。"></textarea>
+<button class="primary" id="start">开始 AI 任务</button><button id="stop">停止</button>
+<p id="state">正在连接…</p><p id="message"></p><p class="warning" id="request-error" role="alert"></p><ol id="steps"></ol>
+</section><aside class="card phone"><img id="screen" alt="虚拟手机当前画面" draggable="false">
+<div class="phone-controls" id="phone-controls" hidden><button id="back">返回</button><button id="home">主页</button></div>
+<p class="note" id="hint">打开 App 后可在这里操作手机。</p></aside></div></main>
+<script>
+const $=id=>document.getElementById(id);
+const states={idle:'等待任务',starting:'正在打开 App',planning:'AI 正在规划',running:'AI 正在操作',human_required:'等待手动操作',observed:'App 已打开',before_payment:'已停在付款前',unreadable:'页面需要手动处理',finish:'任务结束',handoff:'等待你接管',stopped:'已停止',error:'任务未完成',limit:'已达到步数上限'};
+let token=location.hash.slice(1);history.replaceState(null,'',location.pathname);
+let lastScreen=null,manual=false,refreshing=false,openRequested=false,drag=null,inputPending=false;
+async function request(path,data){
+  const r=await fetch(path,{method:data?'POST':'GET',headers:{'X-FeiYu-Commerce':token,'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined});
+  if(!r.ok)throw Error(r.status===403?'请双击 Commerce.cmd 重新打开购物面板。':'操作暂不可用，请确认虚拟手机已启动、AI 已停止。');
+  return r;
+}
+async function refresh(){
+  if(refreshing)return;refreshing=true;
+  try{
+    const s=await(await request('/api/status')).json();
+    const busy=['starting','planning','running'].includes(s.status);
+    if(openRequested&&!busy){openRequested=false;if(s.status!=='error'){await request('/api/manual',{enabled:true});s.manual=true}}
+    manual=s.manual;$('state').textContent=manual?'正在手动操作':states[s.status]||s.status;
+    $('message').textContent=manual?'可以直接点击或滑动虚拟手机画面。':s.message;
+    $('hint').textContent=manual?'登录完成后，可选择「开始 AI 任务」。':'打开 App 后可在这里操作手机。';
+    $('phone-controls').hidden=!manual;$('screen').classList.toggle('manual',manual);
+    $('manual').textContent=manual?'退出手动操作':'手动操作当前画面';
+    $('start').disabled=busy;$('open').disabled=busy;$('manual').disabled=busy;$('stop').disabled=!busy;
+    $('steps').replaceChildren(...s.steps.map(x=>{const li=document.createElement('li');li.textContent=x.action+'：'+x.reason;return li}));
+    const r=await request(manual?'/api/live-screen':'/api/screen').catch(()=>null);
+    if(r){const blob=await r.blob();if(lastScreen)URL.revokeObjectURL(lastScreen);lastScreen=URL.createObjectURL(blob);$('screen').src=lastScreen}
+  }catch(e){$('request-error').textContent=e.message}finally{refreshing=false}
+}
+async function execute(path,data){try{$('request-error').textContent='';await request(path,data);await refresh();return true}catch(e){$('request-error').textContent=e.message;return false}}
+function start(explore){
+  openRequested=explore;
+  execute('/api/start',{app:$('app').value,goal:$('goal').value.trim()||'打开应用，检查当前页面',explore}).then(ok=>{if(!ok)openRequested=false});
+}
+function point(e){const r=$('screen').getBoundingClientRect();const fit=(v,size)=>Math.min(9999,Math.max(0,Math.floor(v/size*10000)));return {x:fit(e.clientX-r.left,r.width),y:fit(e.clientY-r.top,r.height)}}
+async function sendInput(data){if(!manual||inputPending)return;inputPending=true;try{await execute('/api/input',data)}finally{inputPending=false}}
+$('screen').onpointerdown=e=>{if(manual&&!inputPending){e.preventDefault();drag=point(e);$('screen').setPointerCapture(e.pointerId)}};
+$('screen').onpointerup=e=>{if(!drag)return;const start=drag,end=point(e);drag=null;const swipe=Math.hypot(end.x-start.x,end.y-start.y)>350;sendInput({action:swipe?'swipe':'tap',...start,endX:end.x,endY:end.y})};
+$('screen').onpointercancel=()=>{drag=null};
+$('open').onclick=()=>start(true);$('start').onclick=()=>start(false);
+$('manual').onclick=()=>execute('/api/manual',{enabled:!manual});$('stop').onclick=()=>execute('/api/stop',{});
+$('back').onclick=()=>sendInput({action:'back'});$('home').onclick=()=>sendInput({action:'home'});
+refresh();setInterval(refresh,900);
 </script></html>
