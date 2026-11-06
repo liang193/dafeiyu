@@ -127,6 +127,9 @@ extension SocialAdapter { func resetRestriction() async throws {} }
         Task { _ = try? await URLSession.shared.boundedData(for: request, limit: 2048) }
     }
     func resetRestriction() async throws {
+        // A fresh adapter has no in-memory restriction to reset. Local warning
+        // acknowledgment must work before the optional browser runtime is installed.
+        guard child != nil else { return }
         struct Response: Decodable {}
         let _: Response = try await call("resetRestriction", as: Response.self)
     }

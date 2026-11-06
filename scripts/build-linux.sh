@@ -7,6 +7,9 @@ command -v swift >/dev/null
 swift build -c release --jobs "${DAFEIYU_BUILD_JOBS:-2}"
 APP="$PWD/dist/dafeiyu-linux"
 mkdir -p "$APP/Resources"
-cp "$(swift build -c release --show-bin-path)/WeChatAIBot" "$APP/dafeiyu"
+staged=$(mktemp "$APP/.dafeiyu.XXXXXX")
+trap 'rm -f -- "$staged"' EXIT
+install -m 755 "$(swift build -c release --show-bin-path)/WeChatAIBot" "$staged"
 cp -R Resources/QQControl Resources/QQStickers Resources/Linux Resources/SocialControl Resources/SocialBrowser "$APP/Resources/"
+mv -f -- "$staged" "$APP/dafeiyu"
 echo "Built: $APP/dafeiyu"
