@@ -1,0 +1,13 @@
+{
+  "sdk": [
+    {"file": "android-commandlinetools.zip", "url": "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip", "sha256": "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583"},
+    {"file": "emulator-stable-linux.zip", "url": "https://dl.google.com/android/repository/emulator-linux_x64-16740729.zip", "sha1": "f41f9e31eb5ca64926603c03265c50bbc0ff4172"},
+    {"file": "platform-tools-stable-linux.zip", "url": "https://dl.google.com/android/repository/platform-tools_r37.0.1-linux.zip", "sha1": "477254aa5f903c15cf51001717bdf347fb6b53e0"},
+    {"file": "android30-google-x86_64.zip", "url": "https://dl.google.com/android/repository/sys-img/google_apis/x86_64-30_r16.zip", "sha1": "6ae21030eaadc041078444d3798e4b399f3e787d"}
+  ],
+  "apps": [
+    {"file": "meituan.apk", "package": "com.sankuai.meituan", "url": "https://www.meituan.com/mobile/download/meituan/android/homemt?from=touch", "sha256": "93ea66b85773a7a215f42369087f7ab5b2b948046d77741ca0b5b06c6154d470"},
+    {"file": "taobao.apk", "package": "com.taobao.taobao", "url": "https://download.alicdn.com/wireless/taobao4android/latest/taobao4android_703248.apk", "sha256": "37bb1d5f40d03ec6d13f7c071a7f1a15767bed548fc764a313a305d331bef78e"}
+  ],
+  "notes": "SDK hashes are from Google's repository XML (command-line tools: download page). App SHA256 values record the files retrieved over official HTTPS on 2026-11-06, not independent publisher hash attestations. APKs and user data are not redistributed."
+}

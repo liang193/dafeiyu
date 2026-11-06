@@ -1,0 +1,22 @@
+[Unit]
+Description=FeiYu commerce experiment panel
+After=feiyu-commerce-phone.service
+Wants=feiyu-commerce-phone.service
+
+[Service]
+Type=simple
+User=feiyu
+Group=feiyu
+Environment=HOME=/var/lib/feiyu
+Environment=PATH=/opt/feiyu/android-sdk/platform-tools:/usr/bin:/bin
+Environment=DAFEIYU_COMMERCE_SERIAL=emulator-5580
+WorkingDirectory=/opt/feiyu/commerce
+ExecStart=/opt/feiyu/commerce-venv/bin/python /opt/feiyu/commerce/commerce.py serve --port 6088
+Restart=on-failure
+UMask=0077
+NoNewPrivileges=true
+StandardOutput=append:/var/lib/feiyu/logs/commerce.log
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target

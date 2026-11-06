@@ -49,4 +49,4 @@ QQ 需已连接并处于回复运行状态，群内使用真正的 @。任务与
 
 `python3 runtime/test-memory-bridge.py` 使用临时合成数据验证记忆适配。其他检查沿用 `scripts/test.sh`、`scripts/build-linux.sh`、`scripts/test-control-panel.py <Linux executable>` 和 `scripts/check-public.py`。
 
-没有主动向真实 QQ 联系人发送测试消息、真实评论或测试动态。QQ 空间外部接口尚需真实账号验收，不能将合成测试等同于线上发布成功。美团、淘宝尚未在此基础分支中接入。
+没有主动向真实 QQ 联系人发送测试消息、真实评论或测试动态。QQ 空间外部接口尚需真实账号验收，不能将合成测试等同于线上发布成功。购物验证见 [淘宝 / 美团购物实验](../experiments/commerce/README.md)。

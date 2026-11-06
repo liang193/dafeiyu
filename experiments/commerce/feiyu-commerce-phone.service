@@ -1,0 +1,22 @@
+[Unit]
+Description=FeiYu isolated Android commerce experiment
+
+[Service]
+Type=simple
+User=feiyu
+Group=feiyu
+SupplementaryGroups=kvm
+Environment=HOME=/var/lib/feiyu
+Environment=ANDROID_SDK_ROOT=/opt/feiyu/android-sdk
+Environment=ANDROID_AVD_HOME=/var/lib/feiyu/android/avd
+Environment=ANDROID_USER_HOME=/var/lib/feiyu/android
+Environment=DISPLAY=:0
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir
+ExecStart=/opt/feiyu/android-sdk/emulator/emulator -avd FeiYuCommerce -ports 5580,5581 -gpu software -no-snapshot -no-audio -no-boot-anim -camera-back none -camera-front none -no-metrics -grpc-use-token
+KillMode=control-group
+TimeoutStopSec=20
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
